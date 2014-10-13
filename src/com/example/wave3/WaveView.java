@@ -20,13 +20,12 @@ public class WaveView extends View{
 	byte[] waveform;
 	byte[] waveform1000ms;
 	int waveform1000ms_index;
-	byte[] wavelethaar_s1;	// ハールのウェーブレット変換、平均
-	byte[] wavelethaar_w1;	// ハールのウェーブレット変換、差分
-	byte[] waveletdaubechie_s1;	// ドベシィのウェーブレット変換、平均
-	byte[] waveletdaubechie_w1;	// ドベシィのウェーブレット変換、差分
-	int bpm;
-	ArrayList<Integer> beatmin_indexes;
-	ArrayList<Integer> beatmax_indexes;
+	byte[] wavelet_s1;
+	byte[] wavelet_w1;
+	int[] beatmin_indexes;
+	int[] beatmax_indexes;
+	int[] bpmmin;
+	int[] bpmmax;
 	boolean isupdate;
 
 	public WaveView(Context context, MediaPlayer player){
@@ -47,28 +46,27 @@ public class WaveView extends View{
 
 				// ウェーブレット解析結果生成
 				if(waveform1000ms_index >= waveform1000ms.length){
-					wavelethaar_w1 = new byte[waveform1000ms.length / 2];
-					wavelethaar_s1 = invoke1(waveform1000ms, wavelethaar_w1);
-					waveletdaubechie_w1 = new byte[waveform1000ms.length / 2];
-					waveletdaubechie_s1 = invoke2(waveform1000ms, waveletdaubechie_w1);
-					
+					wavelet_w1 = new byte[waveform1000ms.length / 2];
+					wavelet_s1 = new byte[waveform1000ms.length / 2];
+					invoke(waveform1000ms, wavelet_s1, wavelet_w1);
+
 					// 波形の差分をdevision個に分割して最大値、最小値を見る
 					int division = 20;
-					int range = wavelethaar_w1.length / division;
+					int range = wavelet_w1.length / division;
 					int[] min_indexes = new int[division];
 					byte[] min_values = new byte[division];
 					int[] max_indexes = new int[division];
 					byte[] max_values = new byte[division];
 					byte values_min = Byte.MAX_VALUE;
 					byte values_max = Byte.MIN_VALUE;
-					for (int i = 0; i < wavelethaar_w1.length; i += range) {
+					for (int i = 0; i < wavelet_w1.length; i += range) {
 						byte min = Byte.MAX_VALUE;
 						int min_index = 0;
 						byte max = Byte.MIN_VALUE;
 						int max_index = 0;
 						for (int j = 0; j < range; j++) {
 							int index = i + j;
-							byte value = wavelethaar_w1[index];
+							byte value = wavelet_w1[index];
 							if(min > value){
 								min = value;
 								min_index = index;
@@ -91,11 +89,11 @@ public class WaveView extends View{
 						}
 					}
 					// 得られた最大値、最小値のうちしきい値を超えた有益なものを抽出
-					double threshold = 0.8;
+					double threshold = 0.5;
 					double min_threshold = values_min * 0.8;
 					double max_threshold = values_max * 0.8;
-					/*ArrayList<Integer> */beatmin_indexes = new ArrayList<Integer>();
-					/*ArrayList<Integer> */beatmax_indexes = new ArrayList<Integer>();
+					ArrayList<Integer> beatmin_indexes = new ArrayList<Integer>();
+					ArrayList<Integer> beatmax_indexes = new ArrayList<Integer>();
 					for (int i = 0; i < min_indexes.length; i++) {
 						if(min_values[i] < min_threshold){
 							beatmin_indexes.add(min_indexes[i]);
@@ -105,9 +103,15 @@ public class WaveView extends View{
 						}
 					}
 					// 有益な最大値、最小値の間隔を見てBPMを求める
+					if(beatmin_indexes.size() == 0){
+						beatmin_indexes.add(0);
+					}
+					if(beatmax_indexes.size() == 0){
+						beatmax_indexes.add(0);
+					}
 					int[] bpmmin = new int[beatmin_indexes.size() - 1];
 					int[] bpmmax = new int[beatmax_indexes.size() - 1];
-					double msper1sample = 1000.0 / (visualizer.getSamplingRate() / 2 / 1000);
+					double msper1sample = 1085.9 / (visualizer.getSamplingRate() / 2 / 1000);
 					for (int i = 0; i < beatmin_indexes.size() - 1; i++) {
 						int duration_sample = beatmin_indexes.get(i + 1) - beatmin_indexes.get(i);
 						bpmmin[i] = (int)(60000 / (duration_sample * msper1sample));
@@ -116,11 +120,27 @@ public class WaveView extends View{
 						int duration_sample = beatmax_indexes.get(i + 1) - beatmax_indexes.get(i);
 						bpmmax[i] = (int)(60000 / (duration_sample * msper1sample));						
 					}
-String test = "";
-for (int i = 0; i < bpmmax.length; i++) {
-	test += bpmmax[i] + ", ";
-}
-Log.d("test", test);
+					// グローバル変数へ送る
+					int[] beatmin_indexes_int = new int[beatmin_indexes.size()];
+					for (int i = 0; i < beatmin_indexes.size(); i++) {
+						beatmin_indexes_int[i] = beatmin_indexes.get(i);
+					}
+					for (int i = 0; i < bpmmin.length; i++) {
+						while(bpmmin[i] > 300){
+							bpmmin[i] /= 2;
+						}
+					}
+					updateBPM("min", beatmin_indexes_int, bpmmin);
+					int[] beatmax_indexes_int = new int[beatmax_indexes.size()];
+					for (int i = 0; i < beatmax_indexes.size(); i++) {
+						beatmax_indexes_int[i] = beatmax_indexes.get(i);
+					}
+					for (int i = 0; i < bpmmax.length; i++) {
+//						while(bpmmax[i] > 300){
+							bpmmax[i] /= 2;
+//						}
+					}
+					updateBPM("max", beatmax_indexes_int, bpmmax);
 				}
 			}
 			
@@ -149,20 +169,17 @@ Log.d("test", test);
     	waveform = null;
     	waveform1000ms = null;
     	waveform1000ms_index = -1;
-    	wavelethaar_s1 = null;
-    	wavelethaar_w1 = null;
-    	waveletdaubechie_s1 = null;
-    	waveletdaubechie_w1 = null;
+    	wavelet_s1 = null;
+    	wavelet_w1 = null;
     	beatmin_indexes = null;
     	beatmax_indexes = null;
-    	bpm = -1;
+    	bpmmin = null;
+    	bpmmax = null;
     	isupdate = true;
     }
 
     // ウェーブレット変換    
-    private byte[] invoke1(byte[] input, byte[] outputw){
-    	// Haar Wevelet
-		byte[] outputs = new byte[input.length / 2];
+    private byte[] invoke(byte[] input, byte[] outputs, byte[] outputw){
 		for (int j = 0; j < input.length / 2 - 1; j++) {
 			int average = (input[j * 2] + input[j * 2 + 1]) / 2;
 			outputs[j] = (byte)average;
@@ -172,67 +189,44 @@ Log.d("test", test);
     	return outputs;
     }
     
-    private byte[] invoke2(byte[] input, byte[] outputw){
-		// Daubechie Wavelet
-		double[] daubechiep = {0.707106781, 0.707106781};	// N=1
-//		double[] daubechiep = {0.230377813, 0.714846570, 0.630880767, -0.027983769,
-//								-0.187034811, 0.030841381, 0.032883011, -0.010597401};	// N=4
-//		double[] daubechiep = {0.026670057, 0.188176800, 0.527201188, 0.688459039, 0.281172343,
-//								-0.249846424, -0.195946274, 0.127369340, 0.093057364, -0.071394147,
-//								-0.029457536, 0.033212674, 0.003606553, -0.010733175, 0.001395351,
-//								0.001992405, -0.000685856, -0.000116466, 0.000093588, -0.000013264};	// N=10
-		double[] daubechieq = {0.707106781, -0.707106781};	// N=1
-//		double[] daubechieq = {0.010597401, -0.032883011, 0.030841381, -0.187034811,
-//								0.027983769, -0.630880767, 0.714846570, -0.230377813};	// N=4
-//		double[] daubechieq = {-0.000013264, -0.000093588, -0.000116466, 0.000685856, 0.001992405,
-//								-0.001395351, -0.010733175, -0.003606553, 0.033212674, 0.029457536,
-//								-0.071394147, -0.093057364, 0.127369340, 0.195946274, -0.249846424,
-//								-0.281172343, 0.688459039, -0.527201188, 0.188176800, -0.026670057};	// N=10
-		byte[] outputs = new byte[input.length / 2];
-		for (int i = 0; i < input.length / 2; i++) {
-			outputs[i] = 0;
-			outputw[i] = 0;
-			for (int j = 0; j < daubechiep.length; j++) {
-				int index = (j + 2 * i) % input.length;
-				outputs[i] += daubechiep[j] * input[index];
-				outputw[i] += daubechieq[j] * input[index];
-			}
-		}
-		return outputs;
-    }
-
     public void onDraw(Canvas canvas){
 		Paint paint = new Paint();
 		if(!isupdate){
 			canvas.drawText("update pausing", 0, 20, paint);
 		}
-		drawArray(canvas, "waveform1000ms", waveform1000ms, 1, (int)(getHeight() * 0.17));
-		drawArray(canvas, "haar wavelet average", wavelethaar_s1, 1, (int)(getHeight() * 0.34));
-		drawArray(canvas, "daubechie wavelet average", waveletdaubechie_s1, 1, (int)(getHeight() * 0.51));
-		drawArray(canvas, "haar wavelet diff", wavelethaar_w1, 1, (int)(getHeight() * 0.68));
-		drawArray(canvas, "daubechie wavelet diff", waveletdaubechie_w1, 1, (int)(getHeight() * 0.85));
-if(beatmin_indexes != null){
-	paint.setColor(Color.BLUE);
-	for (int i = 0; i < beatmin_indexes.size(); i++) {
-		int startX = 480 * beatmin_indexes.get(i) / 44100;
-		int startY = (int)(getHeight() * 0.68);
-		int stopX = startX;
-		int stopY = (int)(getHeight() * 0.68) + 64;
-		canvas.drawLine(startX, startY, stopX, stopY, paint);	
-	}
-}
-if(beatmax_indexes != null){
-	paint.setColor(Color.RED);
-	for (int i = 0; i < beatmax_indexes.size(); i++) {
-		int startX = 480 * beatmax_indexes.get(i) / 44100;
-		int startY = (int)(getHeight() * 0.68);
-		int stopX = startX;
-		int stopY = (int)(getHeight() * 0.68) - 64;
-		canvas.drawLine(startX, startY, stopX, stopY, paint);	
-	}	
-}
-		drawParam(canvas, waveform1000ms_index + " / ", waveform1000ms != null ? waveform1000ms.length : 0, (int)(getHeight() * 0.1));
-		drawParam(canvas, "bpm", bpm, (int)(getHeight() * 0.9));
+		drawArray(canvas, "waveform1000ms", waveform1000ms, 1, (int)(getHeight() * 0.25));
+		drawArray(canvas, "haar wavelet average", wavelet_s1, 1, (int)(getHeight() * 0.50));
+		drawArray(canvas, "haar wavelet diff", wavelet_w1, 1, (int)(getHeight() * 0.75));
+		if(beatmin_indexes != null){
+			paint.setColor(Color.BLUE);
+			for (int i = 0; i < beatmin_indexes.length; i++) {
+				int startX = 480 * beatmin_indexes[i] / 44100;
+				int startY = (int)(getHeight() * 0.75);
+				int stopX = startX;
+				int stopY = startY + 64;
+				canvas.drawLine(startX, startY, stopX, stopY, paint);	
+			}
+			String bpmmin_join = "";
+			for (int i = 0; i < bpmmin.length; i++) {
+				bpmmin_join += bpmmin[i] + ", ";
+			}
+			canvas.drawText(bpmmin_join, 0, (int)(getHeight() * 0.95), paint);
+		}
+		if(beatmax_indexes != null){
+			paint.setColor(Color.RED);
+			for (int i = 0; i < beatmax_indexes.length; i++) {
+				int startX = 480 * beatmax_indexes[i] / 44100;
+				int startY = (int)(getHeight() * 0.75);
+				int stopX = startX;
+				int stopY = startY - 64;
+				canvas.drawLine(startX, startY, stopX, stopY, paint);	
+			}	
+			String bpmmax_join = "";
+			for (int i = 0; i < bpmmax.length; i++) {
+				bpmmax_join += bpmmax[i] + ", ";
+			}
+			canvas.drawText(bpmmax_join, 0, (int)(getHeight() * 0.90), paint);
+		}
     
     	// 連続して描画する
 		invalidate();
@@ -301,6 +295,16 @@ if(beatmax_indexes != null){
 //    	if(isupdate){
 //        	this.fft = fft;    		
 //    	}
+    }
+    
+    public void updateBPM(String type, int[] beat_indexes, int[] bpm){
+    	if(type.equals("min")){
+    		this.beatmin_indexes = beat_indexes;
+    		this.bpmmin = bpm;
+    	}else if(type.equals("max")){
+    		this.beatmax_indexes = beat_indexes;
+    		this.bpmmax = bpm;
+    	}
     }
     
 }
