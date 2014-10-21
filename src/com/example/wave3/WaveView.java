@@ -1,8 +1,10 @@
 package com.example.wave3;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -23,10 +25,10 @@ public class WaveView extends View{
 	int waveform1000ms_index;
 	byte[] wavelet_s1;
 	byte[] wavelet_w1;
-	int[] beatmin_indexes;
-	int[] beatmax_indexes;
-	int[] bpmmin;
-	int[] bpmmax;
+	int[] beatmin_indexes;	// 表示用
+	int[] beatmax_indexes;	// 表示用
+	int[] bpmmin;	// 表示用
+	int[] bpmmax;	// 表示用
 	int[] bpms;
 	int bpms_index;
 	int bpm_mode;
@@ -48,8 +50,8 @@ public class WaveView extends View{
 				}
 				updateWaveform(waveform);
 
-				// ウェーブレット解析結果生成
 				if(waveform1000ms_index >= waveform1000ms.length){
+					// ウェーブレット解析結果生成
 					wavelet_w1 = new byte[waveform1000ms.length / 2];
 					wavelet_s1 = new byte[waveform1000ms.length / 2];
 					invoke(waveform1000ms, wavelet_s1, wavelet_w1);
@@ -121,7 +123,7 @@ public class WaveView extends View{
 					int[] bpmmin = new int[beatmin_indexes.size() - 1];
 					int[] bpmmax = new int[beatmax_indexes.size() - 1];
 					int maximum_bpm = 185;
-					double msper1sample = 1085.9 / (visualizer.getSamplingRate() / 2 / 1000);
+					double msper1sample = 1085.9 / (visualizer.getSamplingRate() / 2 / 1000);	// 1085.9 は環境依存要素かもしれない。1000msを表している
 					for (int i = 0; i < beatmin_indexes.size() - 1; i++) {
 						int duration_sample = beatmin_indexes.get(i + 1) - beatmin_indexes.get(i);
 						bpmmin[i] = (int)(60000 / (duration_sample * msper1sample));
@@ -136,24 +138,20 @@ public class WaveView extends View{
 							bpmmax[i] /= 2;
 						}
 					}
-					// グローバル変数へ送る
+					// 求まったBPM候補をグローバル変数へ送る
 					int[] beatmin_indexes_int = new int[beatmin_indexes.size()];
 					for (int i = 0; i < beatmin_indexes.size(); i++) {
 						beatmin_indexes_int[i] = beatmin_indexes.get(i);
 					}
 					updateBPM("min", beatmin_indexes_int, bpmmin);
+					updateBPM("bpm", null, bpmmin);
 					int[] beatmax_indexes_int = new int[beatmax_indexes.size()];
 					for (int i = 0; i < beatmax_indexes.size(); i++) {
 						beatmax_indexes_int[i] = beatmax_indexes.get(i);
 					}
 					updateBPM("max", beatmax_indexes_int, bpmmax);
-//					int[] bpms = new int[bpmmin.length + bpmmax.length];
-//					for (int i = 0; i < bpms.length; i++) {
-//						bpms[i] = i < bpmmin.length ? bpmmin[i] : bpmmax[i - bpmmin.length];
-//					}
-//					int[] bpm_array = {mode(bpmmin), mode(bpmmax)};//{average(bpms)};
-					updateBPM("bpm", null, bpmmin);
 					updateBPM("bpm", null, bpmmax);
+					// BPM候補がたまったら最頻値を求める
 					if(bpms_index >= bpms.length){
 						bpm_mode = mode(bpms);
 					}
@@ -209,44 +207,9 @@ public class WaveView extends View{
     	return outputs;
     }
     
-    private int average(int[] input){
-//    	int mode;
-    	int average;
-    	if(input.length != 0){
-//    		mode = mode(input);
-    		int count = 0;
-        	int sum = 0;
-        	for (int i = 0; i < input.length; i++) {
-//        		if(Math.abs(input[i] - mode) < 6){
-        			sum += input[i];
-            		count++;        			
-//        		}
-    		}
-        	average = sum / count;    		
-    	}else{
-    		average = 0;
-    	}
-    	return average;
-    }
-    
-    
     // 最頻値を求める
     private int mode(int[] input){
-//    	int mode_count = 0;
-//    	int mode = 0;
-//    	for (int i = 0; i < input.length; i++) {
-//    		int count = 1;
-//			for (int j = i + 1; j < input.length; j++) {
-//				if(Math.abs(input[i] - input[j]) < 3){
-//					count++;
-//				}
-//			}
-//			if(mode_count < count){
-//				mode_count = count;
-//				mode = input[i];
-//			}
-//		}
-		HashMap<Integer, Integer> counter = new HashMap<Integer, Integer>();
+    	HashMap<Integer, Integer> counter = new HashMap<Integer, Integer>();
 		int mode_count = -1;
 		int mode = 0;
 		for (int i = 0; i < input.length; i++) {
@@ -265,9 +228,24 @@ public class WaveView extends View{
 		if(mode_count == 1){
 			mode = 0;//average(input);
 		}
+		// デバッグ用、ヒストグラムぽいものをLogCatに表示します
+		Integer[] keys = (Integer[]) new TreeSet(counter.keySet()).toArray(new Integer[0]);
+		Log.d("", "--------------------");
+		for (int i = 0; i < keys.length; i++) {
+			Integer count = counter.get(keys[i]);
+			if(count > 1){
+			String count_str = "";
+			for (int j = 0; j < count; j++) {
+				count_str += "*";
+			}
+			Log.d("", keys[i] + "" + count_str);
+			}
+		}
+		Log.d("", "--------------------");
 		return mode;
     }
     
+    // 描画処理
     public void onDraw(Canvas canvas){
 		Paint paint = new Paint();
 		if(!isupdate){
@@ -306,7 +284,7 @@ public class WaveView extends View{
 			}
 			canvas.drawText(bpmmax_join, 0, (int)(getHeight() * 0.900), paint);
 		}
-		drawParam(canvas, "BPM modearound", bpm_mode, (int)(getHeight() * 0.925));
+		drawParam(canvas, "BPM mode", bpm_mode, (int)(getHeight() * 0.925));
     
     	// 連続して描画する
 		invalidate();
@@ -316,6 +294,7 @@ public class WaveView extends View{
         }
     }
     
+    // 波形が描けます
     private void drawArray(Canvas canvas, String label, byte[] array, int division, int zero_y){
     	Paint paint = new Paint();
     	String length_label = "";
@@ -334,6 +313,7 @@ public class WaveView extends View{
         canvas.drawLine(0, zero_y, width, zero_y, paint);    	        	
     }
     
+    // int型パラメータが描けます
     private void drawParam(Canvas canvas, String label, int param, int zero_y){
     	Paint paint = new Paint();
     	String param_str;
@@ -395,7 +375,7 @@ public class WaveView extends View{
 				}
     			bpms_index += bpm.length;
     		}else{
-    			bpms = new int[20 * 2];
+    			bpms = new int[5 * 5 * 2];
     			bpms_index = 0;
     		}
     	}
