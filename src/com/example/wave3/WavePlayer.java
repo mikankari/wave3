@@ -98,12 +98,9 @@ Log.d("", inputbuffer_index + "");
 				boolean isplayed = false;
 				
 				while(true){
-					int response = codec.dequeueOutputBuffer(bufferinfo, 1000);
+					int response = codec.dequeueOutputBuffer(bufferinfo, 1000000);
 					if(response >= 0){
 						int outputbuffer_index = response;
-//if(outputbuffer == null){
-//	outputbuffer = codec.getOutputBuffers();
-//}
 						ByteBuffer buffer = outputbuffer[outputbuffer_index];
 						if(chunk == null || chunk.length < bufferinfo.size){
 							chunk = new byte[bufferinfo.size];
@@ -116,8 +113,9 @@ Log.d("", inputbuffer_index + "");
 							int written_once;
 							while(true){
 								written_once = track.write(chunk, written, remaining);
-								written++;
-								remaining++;
+								written += written_once;
+								remaining -= written_once;
+Log.d("", remaining + ", " + written + ", " + written_once);
 								if(!isplayed && (remaining == 0 || written_once == 0)){
 									isplayed = true;
 									track.play();
