@@ -50,7 +50,7 @@ public class MusicListActivity extends Activity {
 //				mp.start();
 				
 				Intent intent = new Intent(MusicListActivity.this, WaveActivity.class);
-				intent.putExtra("url", item.data);
+				intent.putExtra("uri", item.data);
 				startActivity(intent);
 
 			}
