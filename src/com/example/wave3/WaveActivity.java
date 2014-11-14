@@ -29,7 +29,6 @@ public class WaveActivity extends Activity {
 		FrameLayout layout = (FrameLayout)findViewById(R.id.container);
 		layout.addView(view);
 		
-		
 	}
 	
 	protected void onStart(){
@@ -41,7 +40,7 @@ public class WaveActivity extends Activity {
 	protected void onStop(){
 		super.onStop();
 		
-		player.yield();
+		player.stop();
 	}
 
 }

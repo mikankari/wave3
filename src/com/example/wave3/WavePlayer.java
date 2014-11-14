@@ -11,29 +11,26 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.util.Log;
 
-/**
- * 音楽を再生するスレッド
- * start()で再生、stop()で一時停止
- * 
- * @author 1223066
- *
- */
-public class WavePlayer extends Thread {
+public class WavePlayer{
 	
-	MediaCodec codec;
-	Thread inputbuffer_thread;
-	Thread outputbuffer_thread;
-	String tostring;
+	private MediaExtractor extractor;
+	private MediaCodec codec;
+	private Thread inputbuffer_thread;
+	private Thread outputbuffer_thread;
+	private boolean inputbuffer_isloop;
+	private boolean outputbuffer_isloop;
+	private byte[] waveform;
 	
 	public WavePlayer(String uri) throws IOException{
 		// TODO 自動生成されたコンストラクター・スタブ
-		final MediaExtractor extractor = new MediaExtractor();
+		extractor = new MediaExtractor();
 		extractor.setDataSource(uri);
 		extractor.selectTrack(extractor.getTrackCount() - 1);
 		final MediaFormat format = extractor.getTrackFormat(extractor.getTrackCount() - 1);
 		String mimetype = format.getString(MediaFormat.KEY_MIME);
 
 		codec = MediaCodec.createDecoderByType(mimetype);
+		Log.d("", "ok");
 		codec.configure(format, null, null, 0);
 		codec.start();
 		
@@ -49,9 +46,8 @@ public class WavePlayer extends Thread {
 				boolean isEOS = false;
 //				ByteBuffer[] inputbuffer = codec.getInputBuffers();
 				
-				while(true){
-					int inputbuffer_index = codec.dequeueInputBuffer(1000000);
-Log.d("", inputbuffer_index + "");
+				while(inputbuffer_isloop){
+					int inputbuffer_index = codec.dequeueInputBuffer(1);
 					if(inputbuffer_index >= 0){
 						ByteBuffer buffer = inputbuffer[inputbuffer_index];
 						int bufferSize = extractor.readSampleData(buffer, 0);
@@ -73,9 +69,9 @@ Log.d("", inputbuffer_index + "");
 							extractor.advance();
 						}
 					}else{
-//						Log.d("", "fail to get inputbuffer");
+						Log.d("", "fail to get inputbuffer");
 						try {
-							sleep(16);
+							Thread.sleep(16);
 						} catch (Exception e) {
 							// TODO: handle exception
 							Log.e("", e.toString() + " in inputbuffer");
@@ -97,8 +93,8 @@ Log.d("", inputbuffer_index + "");
 				byte[] chunk = null;
 				boolean isplayed = false;
 				
-				while(true){
-					int response = codec.dequeueOutputBuffer(bufferinfo, 1000000);
+				while(outputbuffer_isloop){
+					int response = codec.dequeueOutputBuffer(bufferinfo, 1);
 					if(response >= 0){
 						int outputbuffer_index = response;
 						ByteBuffer buffer = outputbuffer[outputbuffer_index];
@@ -106,31 +102,33 @@ Log.d("", inputbuffer_index + "");
 							chunk = new byte[bufferinfo.size];
 						}
 						buffer.position(bufferinfo.offset);
-						buffer.get(chunk, 0, bufferinfo.size);
-						if(bufferinfo.size > 0){
-							int remaining = bufferinfo.size;
-							int written = 0;
-							int written_once;
-							while(true){
-								written_once = track.write(chunk, written, remaining);
-								written += written_once;
-								remaining -= written_once;
-Log.d("", remaining + ", " + written + ", " + written_once);
-								if(!isplayed && (remaining == 0 || written_once == 0)){
-									isplayed = true;
-									track.play();
-								}
-								if(remaining == 0){
-									break;
-								}
-								try {
-									sleep(16);
-								} catch (Exception e) {
-									// TODO: handle exception
-									Log.e("", e.toString() + " in outputbuffer");
-								}
-							}
-						}
+						buffer.get(chunk, 0, chunk.length);
+//						if(bufferinfo.size > 0){
+//							int remaining = chunk.length;
+//							int written = 0;
+//							int written_once;
+//							while(true){
+//								written_once = track.write(chunk, written, remaining);
+//								written += written_once;
+//								remaining -= written_once;
+////Log.d("", remaining + ", " + written + ", " + written_once);
+//								if(!isplayed && (remaining == 0 || written_once == 0)){
+//									isplayed = true;
+//									track.play();
+////Log.d("", isplayed + "");
+//								}
+//								if(remaining == 0){
+//									break;
+//								}
+//								try {
+//									Thread.sleep(16);
+//								} catch (Exception e) {
+//									// TODO: handle exception
+//									Log.e("", e.toString() + " in outputbuffer");
+//								}
+//							}
+//						}
+						updateWaveform(chunk);
 						codec.releaseOutputBuffer(outputbuffer_index, false);
 						if((bufferinfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0){
 							break;
@@ -146,7 +144,6 @@ Log.d("", remaining + ", " + written + ", " + written_once);
 						int channelConfig = channelConfigs[format.getInteger(MediaFormat.KEY_CHANNEL_COUNT) - 1];
 						int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
 						int bufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat);
-						tostring = sampleRate + "Hz " + format.getInteger(MediaFormat.KEY_CHANNEL_COUNT) + "ch buffer:" + bufferSize + "";
 
 						track = new AudioTrack(AudioManager.STREAM_MUSIC,
 															sampleRate,
@@ -154,26 +151,48 @@ Log.d("", remaining + ", " + written + ", " + written_once);
 															audioFormat,
 															bufferSize,
 															AudioTrack.MODE_STREAM);
-						Log.d("", tostring);
+						Log.d("", sampleRate + "Hz " + format.getInteger(MediaFormat.KEY_CHANNEL_COUNT) + "ch buffer:" + bufferSize + "");
 					}
 				}
 			}
 			
 		});
 		
-		inputbuffer_thread.start();
-		outputbuffer_thread.start();
 	}
 	
-	@Override
-	public String toString() {
-		return tostring;
+	private void updateWaveform(byte[] waveform){
+		this.waveform = waveform;
 	}
-
-	@Override
-	public void run() {
-		// TODO 自動生成されたメソッド・スタブ		
-		
+	
+	public byte[] getWaveform(){
+		return waveform;
+	}
+	
+	public double getDecodePercentage(){
+		MediaFormat format = extractor.getTrackFormat(extractor.getTrackCount() - 1);
+//Log.d("", extractor.getSampleTime() / format.getLong(MediaFormat.KEY_DURATION));
+		return extractor.getSampleTime() / (double)format.getLong(MediaFormat.KEY_DURATION);
+	}
+	
+	public void start(){
+		inputbuffer_isloop = true;
+		outputbuffer_isloop = true;
+		inputbuffer_thread.start();
+		outputbuffer_thread.start();		
+	}
+	
+	public void stop(){
+		inputbuffer_isloop = false;
+		outputbuffer_isloop = false;
+		try {
+			inputbuffer_thread.join();
+			outputbuffer_thread.join();
+		} catch (Exception e) {
+			// TODO: handle exception
+			Log.e("", e.toString() + " in stop");
+		}
+		codec.stop();
+		codec.release();
 	}
 
 }

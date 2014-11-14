@@ -2,6 +2,7 @@ package com.example.wave3;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.media.MediaPlayer;
 import android.media.audiofx.Visualizer;
@@ -68,46 +69,12 @@ public class WaveView extends View{
 		if(!isupdate){
 			canvas.drawText("update pausing", 0, 20, paint);
 		}
-//		if(waveform2 != null){
-//			for (int i = 0; i < waveform2.length; i++) {
-//				waveform2[i] += 128;
-//			}
-//			
-//		}
-//		drawArray(canvas, "waveform", waveform2, 1, (int)(getHeight() * 0.25));
-//		drawArray(canvas, "haar wavelet average", analyzer.waveform1000ms, 1, (int)(getHeight() * 0.50));
-//		drawArray(canvas, "haar wavelet diff", wavelet_w1, 1, (int)(getHeight() * 0.75));
-//		if(beatmin_indexes != null){
-//			paint.setColor(Color.BLUE);
-//			for (int i = 0; i < beatmin_indexes.length; i++) {
-//				int startX = getWidth() * beatmin_indexes[i] / wavelet_w1.length;
-//				int startY = (int)(getHeight() * 0.75);
-//				int stopX = startX;
-//				int stopY = startY + 64;
-//				canvas.drawLine(startX, startY, stopX, stopY, paint);	
-//			}
-//			String bpmmin_join = "";
-//			for (int i = 0; i < bpmmin.length; i++) {
-//				bpmmin_join += bpmmin[i] + ", ";
-//			}
-//			canvas.drawText(bpmmin_join, 0, (int)(getHeight() * 0.95), paint);
-//		}
-//		if(beatmax_indexes != null){
-//			paint.setColor(Color.RED);
-//			for (int i = 0; i < beatmax_indexes.length; i++) {
-//				int startX = getWidth() * beatmax_indexes[i] / wavelet_w1.length;
-//				int startY = (int)(getHeight() * 0.75);
-//				int stopX = startX;
-//				int stopY = startY - 64;
-//				canvas.drawLine(startX, startY, stopX, stopY, paint);	
-//			}	
-//			String bpmmax_join = "";
-//			for (int i = 0; i < bpmmax.length; i++) {
-//				bpmmax_join += bpmmax[i] + ", ";
-//			}
-//			canvas.drawText(bpmmax_join, 0, (int)(getHeight() * 0.900), paint);
-//		}
-//		drawParam(canvas, "BPM mode", bpm_mode, (int)(getHeight() * 0.925));
+
+		WavePlayer player = ((WaveActivity)getContext()).player;
+		drawArray(canvas, "waveform", player.getWaveform(), 1, (int)(getHeight() * 0.25));
+		drawParam(canvas, "%", (int)(player.getDecodePercentage() * 100), (int)(getHeight() * 0.50));
+		paint.setColor(Color.BLACK);
+		canvas.drawLine(0, (int)(getHeight() * 0.50), (int)(player.getDecodePercentage() * getWidth()), (int)(getHeight() * 0.50), paint);
     
     	// ˜A‘±‚µ‚Ä•`‰æ‚·‚é
 		invalidate();
