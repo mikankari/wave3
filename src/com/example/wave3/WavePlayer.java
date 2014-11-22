@@ -184,6 +184,7 @@ public class WavePlayer{
 	
 	private void updateWaveform(byte[] waveform_sample){
 		waveform = waveform_sample;
+		updateFFT();
     	if(waveform1000ms_index >= 0 && waveform1000ms_index < waveform1000ms.length){ 
     		for (int i = 0; i < waveform_sample.length && waveform1000ms_index + i < waveform1000ms.length; i++) { 
     			waveform1000ms[waveform1000ms_index + i] = waveform_sample[i]; 
@@ -192,7 +193,6 @@ public class WavePlayer{
     	}else{
     		if(waveform1000ms != null){
         		updateBPM();
-        		updateFFT();
     		}
     		waveform1000ms = new byte[format.getInteger(format.KEY_SAMPLE_RATE)]; 
     		waveform1000ms_index = 0; 
