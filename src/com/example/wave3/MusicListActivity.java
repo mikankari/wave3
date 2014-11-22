@@ -24,8 +24,8 @@ import android.widget.TextView;
 public class MusicListActivity extends Activity {
 
 	Thread analysing_thread;
+	boolean analysing_isloop;
 	Handler handler = new Handler();
-	int analysing_position;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +63,7 @@ public class MusicListActivity extends Activity {
 			public void run() {
 				// TODO 自動生成されたメソッド・スタブ
 				// 解析中
-				for (int i = 0; i < listview1.getCount(); i++) {					
+				for (int i = 0; i < listview1.getCount() && analysing_isloop; i++) {					
 					Data item = (Data)listview1.getItemAtPosition(i);
 					
 					try {
@@ -90,7 +90,7 @@ public class MusicListActivity extends Activity {
 						});
 					} catch (Exception e) {
 						// TODO 自動生成された catch ブロック
-						Log.e("", e.toString() + " on analysing: " + analysing_position);
+						Log.e("", e.toString() + " on analysing: " + i);
 					}
 				}
 				
@@ -113,12 +113,18 @@ public class MusicListActivity extends Activity {
 	}
 	
 	public void startAnalysing(){
-		analysing_position = 0;
+		analysing_isloop = true;
 		analysing_thread.start();
 	}
 	
 	public void stopAnalysing(){
-		analysing_thread.interrupt();
+		analysing_isloop = false;
+		try {
+			analysing_thread.join();
+		} catch (InterruptedException e) {
+			// TODO 自動生成された catch ブロック
+			e.printStackTrace();
+		}
 	}
 
 	/**
