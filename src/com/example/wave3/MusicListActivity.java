@@ -94,7 +94,7 @@ public class MusicListActivity extends Activity {
 								((ArrayAdapter)listview1.getAdapter()).notifyDataSetChanged();									
 							}
 						});
-						FileWriter.writePublicFile(context, item.title, item.info);
+						FileWriter.writePublicFile(context, item.title + ".txt", item.info);
 						player.stop();
 					} catch (Exception e) {
 						// TODO é©ìÆê∂ê¨Ç≥ÇÍÇΩ catch ÉuÉçÉbÉN
