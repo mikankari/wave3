@@ -26,6 +26,16 @@ public class WavePlayer{
 	private byte[] waveform;
 	private int waveform_index;
 	private HashMap<Integer, Integer> bpms;
+
+	//ここから赤木の追加分変数
+	byte[] fft; //fftデータ格納用バイト型変数
+	boolean Scale = false;//スケールが検出できているか、いないかの判定
+	int max=0; //最大値座標格納用変数
+	int cmj=0,cma=0,dmj=0,dma=0,emj=0,ema=0,fmj=0,fma=0,gmj=0,gma=0,amj=0,bmj=0,bma=0;//各スケール比率加点方式用変数,mjはメジャー,maはマイナー
+	boolean a=false,b=false,c=false,d=false,e=false,f=false,g=false;//各音階判定用変数
+	boolean as=false,cs=false,ds=false,fs=false,gs=false;//(追加分)音階がシャープの時用のフラグ、ド,レ,ファ,ソ,ラの5音のみシャープあり
+	boolean majar=false,mainare=false; //メジャー、マイナーのフラグ、メジャーなら明るい、マイナーなら暗い曲として認定、各スケールに使用される特徴があるか調べてみる。
+	//ここまで赤木の追加分変数
 	
 	public WavePlayer(String uri) throws IOException{
 		// TODO 自動生成されたコンストラクター・スタブ
@@ -178,7 +188,8 @@ public class WavePlayer{
         	waveform_index += waveform_sample.length; 
     	}else{
     		if(waveform != null){
-        		updateBPM();    			
+        		updateBPM();
+        		updateFFT();
     		}
     		waveform = new byte[format.getInteger(format.KEY_SAMPLE_RATE)]; 
     		waveform_index = 0; 
@@ -288,6 +299,14 @@ public class WavePlayer{
 			}
 		}
 	}
+	
+	//赤木追加分,ｆｆｔの処理をここにガリガリと書いていきます
+	
+	public void updateFFT()
+	{
+	}
+	
+	//追加分、ここで終了
 	
 	public byte[] getWaveform(){
 		byte[] waveform_sample = new byte[4096];	// 仮値、サンプル数の求め方不明
