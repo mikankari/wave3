@@ -27,46 +27,28 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical" >
-
-            <SeekBar
-                android:id="@+id/seekbar1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1" />
-
         </LinearLayout>
 
-        <FrameLayout
+        <LinearLayout
+            android:id="@+id/LinearLayout1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1" >
 
             <Button
-                android:id="@+id/button_prev"
+                android:id="@+id/button1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="left"
-                android:text="@string/prev"
+                android:text="@string/start"
                 android:width="100dp" />
 
             <Button
-                android:id="@+id/button_play"
+                android:id="@+id/button2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/play"
+                android:text="@string/stop"
                 android:width="100dp" />
-
-            <Button
-                android:id="@+id/button_next"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="right"
-                android:text="@string/next"
-                android:width="100dp" />
-
-        </FrameLayout>
-
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>

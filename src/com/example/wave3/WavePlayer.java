@@ -2,6 +2,9 @@ package com.example.wave3;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.TreeSet;
 
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -14,19 +17,22 @@ import android.util.Log;
 public class WavePlayer{
 	
 	private MediaExtractor extractor;
+	private MediaFormat format;
 	private MediaCodec codec;
 	private Thread inputbuffer_thread;
 	private Thread outputbuffer_thread;
 	private boolean inputbuffer_isloop;
 	private boolean outputbuffer_isloop;
 	private byte[] waveform;
+	private int waveform_index;
+	private HashMap<Integer, Integer> bpms;
 	
 	public WavePlayer(String uri) throws IOException{
 		// TODO 自動生成されたコンストラクター・スタブ
 		extractor = new MediaExtractor();
 		extractor.setDataSource(uri);
 		extractor.selectTrack(extractor.getTrackCount() - 1);
-		final MediaFormat format = extractor.getTrackFormat(extractor.getTrackCount() - 1);
+		format = extractor.getTrackFormat(extractor.getTrackCount() - 1);
 		String mimetype = format.getString(MediaFormat.KEY_MIME);
 
 		codec = MediaCodec.createDecoderByType(mimetype);
@@ -69,7 +75,7 @@ public class WavePlayer{
 							extractor.advance();
 						}
 					}else{
-						Log.d("", "fail to get inputbuffer");
+//						Log.d("", "fail to get inputbuffer");
 						try {
 							Thread.sleep(16);
 						} catch (Exception e) {
@@ -158,20 +164,160 @@ public class WavePlayer{
 			
 		});
 		
+		waveform = null;
+		waveform_index = -1;
+		bpms = new HashMap<Integer, Integer>();
+		
 	}
 	
-	private void updateWaveform(byte[] waveform){
-		this.waveform = waveform;
+	private void updateWaveform(byte[] waveform_sample){
+    	if(waveform_index >= 0 && waveform_index < waveform.length){ 
+    		for (int i = 0; i < waveform_sample.length && waveform_index + i < waveform.length; i++) { 
+    			waveform[waveform_index + i] = waveform_sample[i]; 
+    		}
+        	waveform_index += waveform_sample.length; 
+    	}else{
+    		if(waveform != null){
+        		updateBPM();    			
+    		}
+    		waveform = new byte[format.getInteger(format.KEY_SAMPLE_RATE)]; 
+    		waveform_index = 0; 
+    	}
+	}
+	
+	private void updateBPM(){
+		// ウェーブレット解析結果生成
+		byte[] wavelet_w1 = new byte[waveform.length / 2];
+		byte[] wavelet_s1 = new byte[waveform.length / 2];
+		for (int j = 0; j < waveform.length / 2 - 1; j++) {
+			int average = (waveform[j * 2] + waveform[j * 2 + 1]) / 2;
+			wavelet_s1[j] = (byte)average;
+			int difference = (waveform[j * 2] - waveform[j * 2 + 1]);
+			wavelet_w1[j] = (byte)difference;
+		}
+		// 波形の差分をdevision個に分割して最大値、最小値を見る
+		int division = 10;
+		int range = wavelet_w1.length / division;
+		int[] min_indexes = new int[division];
+		byte[] min_values = new byte[division];
+		int[] max_indexes = new int[division];
+		byte[] max_values = new byte[division];
+		byte values_min = Byte.MAX_VALUE;
+		byte values_max = Byte.MIN_VALUE;
+		for (int i = 0; i < wavelet_w1.length - range; i += range) {
+			byte min = Byte.MAX_VALUE;
+			int min_index = 0;
+			byte max = Byte.MIN_VALUE;
+			int max_index = 0;
+			for (int j = 0; j < range; j++) {
+				int index = i + j;
+				byte value = wavelet_w1[index];
+				if(min > value){
+					min = value;
+					min_index = index;
+				}
+				if(max < value){
+					max = value;
+					max_index = index;
+				}
+			}
+			int index = i / range;
+			min_indexes[index] = min_index;
+			min_values[index] = min;
+			max_indexes[index] = max_index;
+			max_values[index] = max;
+			if(values_min > min){
+				values_min = min;
+			}
+			if(values_max < max){
+				values_max = max;
+			}
+		}
+		// 得られた最大値、最小値のうちしきい値を超えた有益なものを抽出
+		double threshold = 0.4;
+		double min_threshold = values_min * threshold;
+		double max_threshold = values_max * threshold;
+		int minimum_duration = wavelet_w1.length / division;
+		ArrayList<Integer> beatmin_indexes = new ArrayList<Integer>();
+		ArrayList<Integer> beatmax_indexes = new ArrayList<Integer>();
+		for (int i = 0; i < min_indexes.length; i++) {
+			if(min_values[i] < min_threshold){
+				if(beatmin_indexes.isEmpty() || min_indexes[i] - beatmin_indexes.get(beatmin_indexes.size() - 1) >= minimum_duration){	//	精度向上の余地ありかも
+					beatmin_indexes.add(min_indexes[i]);								
+				}
+			}
+			if(max_values[i] > max_threshold){
+				if(beatmax_indexes.isEmpty() || max_indexes[i] - beatmax_indexes.get(beatmax_indexes.size() - 1) >= minimum_duration){
+					beatmax_indexes.add(max_indexes[i]);
+				}
+			}
+		}
+		// 有益な最大値、最小値の間隔を見てBPMを求める
+		if(beatmin_indexes.size() == 0){
+			beatmin_indexes.add(0);
+		}
+		if(beatmax_indexes.size() == 0){
+			beatmax_indexes.add(0);
+		}
+		int[] bpmmin = new int[beatmin_indexes.size() - 1];
+		int[] bpmmax = new int[beatmax_indexes.size() - 1];
+		int maximum_bpm = 185;
+		double msper1sample = 1000 / (format.getInteger(format.KEY_SAMPLE_RATE) / 2);	// 1085.9 は環境依存要素かもしれない。1000msを表している
+		for (int i = 0; i < beatmin_indexes.size() - 1; i++) {
+			int duration_sample = beatmin_indexes.get(i + 1) - beatmin_indexes.get(i);
+			bpmmin[i] = (int)(60000 / (duration_sample * msper1sample));
+			while(bpmmin[i] > maximum_bpm){
+				bpmmin[i] /= 2;
+			}
+		}
+		for (int i = 0; i < beatmax_indexes.size() - 1; i++) {
+			int duration_sample = beatmax_indexes.get(i + 1) - beatmax_indexes.get(i);
+			bpmmax[i] = (int)(60000 / (duration_sample * msper1sample));						
+			while(bpmmax[i] > maximum_bpm){
+				bpmmax[i] /= 2;
+			}
+		}
+		// 求まったBPM候補をグローバル変数へ送る
+		for (int i = 0; i < bpmmin.length; i++) {
+			int key = bpmmin[i];
+			if(bpms.containsKey(key)){
+				int value = bpms.get(key);
+				bpms.put(key, value + 1);				
+			}else{
+				bpms.put(key, 0);
+			}
+		}
 	}
 	
 	public byte[] getWaveform(){
-		return waveform;
+		byte[] waveform_sample = new byte[4096];	// 仮値、サンプル数の求め方不明
+		for (int i = 0; i < waveform_sample.length; i++) {
+			waveform_sample[i] = waveform[waveform_index - 4096];
+		}
+		return waveform_sample;
+	}
+	
+	public int getBPM(){
+		int max = Integer.MIN_VALUE;
+		int max_index = -1;
+		Integer[] keys = (Integer[]) new TreeSet(bpms.keySet()).toArray(new Integer[0]);
+		for (int i = 0; i < keys.length; i++) {
+			Integer count = bpms.get(keys[i]);
+			if(max < count){
+				max = count;
+				max_index = keys[i];
+			}
+		}
+		return max_index;
 	}
 	
 	public double getDecodePercentage(){
-		MediaFormat format = extractor.getTrackFormat(extractor.getTrackCount() - 1);
-//Log.d("", extractor.getSampleTime() / format.getLong(MediaFormat.KEY_DURATION));
-		return extractor.getSampleTime() / (double)format.getLong(MediaFormat.KEY_DURATION);
+		double current = extractor.getSampleTime();
+		double duration = format.getLong(MediaFormat.KEY_DURATION);
+		if(current < 0){
+			current = duration;
+		}
+		return current / duration;
 	}
 	
 	public void start(){

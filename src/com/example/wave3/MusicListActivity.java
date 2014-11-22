@@ -4,29 +4,28 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import android.app.Activity;
+import android.app.ListActivity;
 import android.content.ContentResolver;
-import android.content.Intent;
 import android.database.Cursor;
-import android.media.MediaPlayer;
-import android.media.MediaPlayer.OnCompletionListener;
-import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ListView;
-import android.widget.SeekBar;
-import android.widget.SeekBar.OnSeekBarChangeListener;
+import android.widget.TextView;
 
 public class MusicListActivity extends Activity {
 
-	private MediaPlayer mp;
-	int playing_position;
-	boolean isuserseek;
+	Thread analysing_thread;
+	Handler handler = new Handler();
+	int analysing_position;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -34,50 +33,92 @@ public class MusicListActivity extends Activity {
 		setContentView(R.layout.activity_music_list);
 		
 		final ListView listview1 = (ListView)findViewById(R.id.listview1);
-//		final MediaPlayer mp = MediaPlayer.create(this, R.raw.dummy);
 		listview1.setOnItemClickListener(new OnItemClickListener() {
-
 			@Override
-			public void onItemClick(AdapterView<?> parent, View view,
-					int position, long id) {
+			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 				// TODO 自動生成されたメソッド・スタブ
-				Data item = (Data)parent.getItemAtPosition(position);
-				
-//				Toast.makeText(getApplicationContext(), item.data, Toast.LENGTH_SHORT);
-								
-//				startItemNew(item.data, position);
-//				mp = MediaPlayer.create(getApplicationContext(), Uri.parse(item.data));
-//				mp.start();
-				
-				Intent intent = new Intent(MusicListActivity.this, WaveActivity.class);
-				intent.putExtra("uri", item.data);
-				startActivity(intent);
-
 			}
-			
 		});
-
-		mp = null;
-		playing_position = 0;
-		isuserseek = false;
-		executeFindMusicFiles(listview1);
 		
-		new Timer().schedule(new TimerTask() {
+		final Button button1 = (Button)findViewById(R.id.button1);
+		button1.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// TODO 自動生成されたメソッド・スタブ
+				startAnalysing();
+			}
+		});
+		final Button button2 = (Button)findViewById(R.id.button2);
+		button2.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// TODO 自動生成されたメソッド・スタブ
+				stopAnalysing();
+			}
+		});
+		
+		analysing_thread = new Thread(new Runnable() {
 			
 			@Override
 			public void run() {
 				// TODO 自動生成されたメソッド・スタブ
-				seekUpdate();
+				// 解析中
+				for (int i = 0; i < listview1.getCount(); i++) {					
+					Data item = (Data)listview1.getItemAtPosition(i);
+					
+					try {
+						WavePlayer player = new WavePlayer(item.data);
+						player.start();
+						while(player.getDecodePercentage() != 1){
+							item.info = Math.round(player.getDecodePercentage() * 100) + "% 解析中...";
+							handler.post(new Runnable() {
+								@Override
+								public void run() {
+									// TODO 自動生成されたメソッド・スタブ
+									((ArrayAdapter)listview1.getAdapter()).notifyDataSetChanged();									
+								}
+							});
+							Thread.sleep(1000);
+						}
+						item.info = "BPM" + player.getBPM();
+						handler.post(new Runnable() {
+							@Override
+							public void run() {
+								// TODO 自動生成されたメソッド・スタブ
+								((ArrayAdapter)listview1.getAdapter()).notifyDataSetChanged();									
+							}
+						});
+					} catch (Exception e) {
+						// TODO 自動生成された catch ブロック
+						Log.e("", e.toString() + " on analysing: " + analysing_position);
+					}
+				}
+				
+			}
+		});
+
+		executeFindMusicFiles(listview1);
+		
+		new Timer().schedule(new TimerTask() {
+			@Override
+			public void run() {
+				// TODO 自動生成されたメソッド・スタブ
+				// 定期実行
 			}
 		}, (long)0, (long)1000);
 	}
 	
 	protected void onDestroy(){
 		super.onDestroy();
-		
-//		Log.d("test", "ondestroy");
-		
-		stopItem();
+	}
+	
+	public void startAnalysing(){
+		analysing_position = 0;
+		analysing_thread.start();
+	}
+	
+	public void stopAnalysing(){
+		analysing_thread.interrupt();
 	}
 
 	/**
@@ -116,6 +157,7 @@ public class MusicListActivity extends Activity {
 				Data item = new Data();
 				item.title = title;
 				item.data = data;
+				item.info = "";
 				adapter.add(item);
 //				adapter.add(title + "\n" + other);
 				
@@ -127,73 +169,15 @@ public class MusicListActivity extends Activity {
 		
 		
 	}
-	
-	private int getPosition(){
-		return playing_position;
-	}
-	
-	private void seekUpdate(){
-		if(!isuserseek){
-			SeekBar seekbar1 = (SeekBar)findViewById(R.id.seekbar1);
-			if(mp != null){
-				seekbar1.setProgress((int)((float)mp.getCurrentPosition() / (float)mp.getDuration() * 100.0));
-			}else{
-				seekbar1.setProgress(0);
-			}
-		}
-	}
-	
-	private void startItemNew(String data, int position){
-		if(mp != null){
-			mp.stop();
-		}
-		mp = MediaPlayer.create(this, Uri.parse(data));
-		mp.setOnCompletionListener(new OnCompletionListener() {
-			
-			@Override
-			public void onCompletion(MediaPlayer mp) {
-				// TODO 自動生成されたメソッド・スタブ
-				ListView listview1 = (ListView)findViewById(R.id.listview1);
-				int position = getPosition() + 1;
-				if(position >= listview1.getCount()){
-					position = listview1.getCount() - 1;
-				}
-				Data item = (Data)listview1.getItemAtPosition(position);
-				
-				startItemNew(item.data, position);				
-			}
-		});
-		playing_position = position;
-		startItem();
-		
-//Log.d("test", data);
-	}
-	
-	private void startItem(){
-		if(mp == null){
-			return;
-		}
-		mp.start();
-		Button button = (Button)findViewById(R.id.button_play);
-		button.setText("||");
-	}
-	
-	private void stopItem(){
-		if(mp == null){
-			return;
-		}
-		mp.pause();
-		Button button = (Button)findViewById(R.id.button_play);
-		button.setText(">");
-	}
 
 	private static class Data{
 		String title;
 		String data;
+		String info;
 		
 		// ここがリストビューに表示される
 		public String toString(){
-			return title;
+			return info + " " + title;
 		}
 	}
 
