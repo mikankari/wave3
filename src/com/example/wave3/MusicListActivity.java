@@ -5,6 +5,7 @@ import java.util.TimerTask;
 
 import android.app.Activity;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
@@ -24,6 +25,7 @@ public class MusicListActivity extends Activity {
 	Thread analysing_thread;
 	boolean analysing_isloop;
 	Handler handler = new Handler();
+	Context context = this;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -92,6 +94,7 @@ public class MusicListActivity extends Activity {
 								((ArrayAdapter)listview1.getAdapter()).notifyDataSetChanged();									
 							}
 						});
+						FileWriter.writePublicFile(context, item.title, item.info);
 						player.stop();
 					} catch (Exception e) {
 						// TODO é©ìÆê∂ê¨Ç≥ÇÍÇΩ catch ÉuÉçÉbÉN

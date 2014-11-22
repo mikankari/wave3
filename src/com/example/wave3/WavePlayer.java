@@ -87,15 +87,15 @@ public class WavePlayer{
 						}
 					}else{
 //						Log.d("", "fail to get inputbuffer");
-						try {
-							Thread.sleep(16);
-						} catch (Exception e) {
-							// TODO: handle exception
-							Log.e("", e.toString() + " in inputbuffer");
-						}
+//						try {
+//							Thread.sleep(1);
+//						} catch (Exception e) {
+//							// TODO: handle exception
+//							Log.e("", e.toString() + " in buffer");
+//						}
 					}
 				
-					int response = codec.dequeueOutputBuffer(bufferinfo, 1);
+					int response = codec.dequeueOutputBuffer(bufferinfo, 0);
 					if(response >= 0){
 						int outputbuffer_index = response;
 						ByteBuffer buffer = outputbuffer[outputbuffer_index];
@@ -112,11 +112,9 @@ public class WavePlayer{
 //								written_once = track.write(chunk, written, remaining);
 //								written += written_once;
 //								remaining -= written_once;
-////Log.d("", remaining + ", " + written + ", " + written_once);
 //								if(!isplayed && (remaining == 0 || written_once == 0)){
 //									isplayed = true;
 //									track.play();
-////Log.d("", isplayed + "");
 //								}
 //								if(remaining == 0){
 //									break;
