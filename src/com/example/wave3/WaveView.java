@@ -15,7 +15,6 @@ public class WaveView extends View{
 	Visualizer visualizer;
 	WaveAnalyzer analyzer;
 	boolean isupdate;
-	
 	byte[] waveform2;
 	
 	public WaveView(Context context){
