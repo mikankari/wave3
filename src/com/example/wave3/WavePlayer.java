@@ -24,7 +24,8 @@ public class WavePlayer{
 	private boolean inputbuffer_isloop;
 	private boolean outputbuffer_isloop;
 	private byte[] waveform;
-	private int waveform_index;
+	private byte[] waveform1000ms;
+	private int waveform1000ms_index;
 	private HashMap<Integer, Integer> bpms;
 
 	//ここから赤木の追加分変数
@@ -175,35 +176,37 @@ public class WavePlayer{
 		});
 		
 		waveform = null;
-		waveform_index = -1;
+		waveform1000ms = null;
+		waveform1000ms_index = -1;
 		bpms = new HashMap<Integer, Integer>();
 		
 	}
 	
 	private void updateWaveform(byte[] waveform_sample){
-    	if(waveform_index >= 0 && waveform_index < waveform.length){ 
-    		for (int i = 0; i < waveform_sample.length && waveform_index + i < waveform.length; i++) { 
-    			waveform[waveform_index + i] = waveform_sample[i]; 
+		waveform = waveform_sample;
+    	if(waveform1000ms_index >= 0 && waveform1000ms_index < waveform1000ms.length){ 
+    		for (int i = 0; i < waveform_sample.length && waveform1000ms_index + i < waveform1000ms.length; i++) { 
+    			waveform1000ms[waveform1000ms_index + i] = waveform_sample[i]; 
     		}
-        	waveform_index += waveform_sample.length; 
+        	waveform1000ms_index += waveform_sample.length; 
     	}else{
-    		if(waveform != null){
+    		if(waveform1000ms != null){
         		updateBPM();
         		updateFFT();
     		}
-    		waveform = new byte[format.getInteger(format.KEY_SAMPLE_RATE)]; 
-    		waveform_index = 0; 
+    		waveform1000ms = new byte[format.getInteger(format.KEY_SAMPLE_RATE)]; 
+    		waveform1000ms_index = 0; 
     	}
 	}
 	
 	private void updateBPM(){
 		// ウェーブレット解析結果生成
-		byte[] wavelet_w1 = new byte[waveform.length / 2];
-		byte[] wavelet_s1 = new byte[waveform.length / 2];
-		for (int j = 0; j < waveform.length / 2 - 1; j++) {
-			int average = (waveform[j * 2] + waveform[j * 2 + 1]) / 2;
+		byte[] wavelet_w1 = new byte[waveform1000ms.length / 2];
+		byte[] wavelet_s1 = new byte[waveform1000ms.length / 2];
+		for (int j = 0; j < waveform1000ms.length / 2 - 1; j++) {
+			int average = (waveform1000ms[j * 2] + waveform1000ms[j * 2 + 1]) / 2;
 			wavelet_s1[j] = (byte)average;
-			int difference = (waveform[j * 2] - waveform[j * 2 + 1]);
+			int difference = (waveform1000ms[j * 2] - waveform1000ms[j * 2 + 1]);
 			wavelet_w1[j] = (byte)difference;
 		}
 		// 波形の差分をdevision個に分割して最大値、最小値を見る
@@ -509,11 +512,13 @@ public class WavePlayer{
 	
 	//追加分、ここで終了
 	
+	public String getCode(){
+		// 遠藤による提案：これで外部からアクセスできると楽しい
+		return "";
+	}
+	
 	public byte[] getWaveform(){
-		byte[] waveform_sample = new byte[4096];	// 仮値、サンプル数の求め方不明
-		for (int i = 0; i < waveform_sample.length; i++) {
-			waveform_sample[i] = waveform[waveform_index - 4096];
-		}
+		byte[] waveform_sample = waveform;
 		return waveform_sample;
 	}
 	

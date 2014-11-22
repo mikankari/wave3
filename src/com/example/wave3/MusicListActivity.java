@@ -4,8 +4,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import android.app.Activity;
-import android.app.ListActivity;
 import android.content.ContentResolver;
+import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.os.Handler;
@@ -16,10 +16,8 @@ import android.view.View.OnClickListener;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ListView;
-import android.widget.TextView;
 
 public class MusicListActivity extends Activity {
 
@@ -37,6 +35,10 @@ public class MusicListActivity extends Activity {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 				// TODO 自動生成されたメソッド・スタブ
+				Data item = (Data)parent.getItemAtPosition(position);
+				Intent intent = new Intent(MusicListActivity.this, WaveActivity.class);   
+				intent.putExtra("uri", item.data);   
+				startActivity(intent);
 			}
 		});
 		
