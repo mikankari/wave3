@@ -35,6 +35,14 @@ public class WavePlayer{
 	boolean a=false,b=false,c=false,d=false,e=false,f=false,g=false;//各音階判定用変数
 	boolean as=false,cs=false,ds=false,fs=false,gs=false;//(追加分)音階がシャープの時用のフラグ、ド,レ,ファ,ソ,ラの5音のみシャープあり
 	boolean majar=false,mainare=false; //メジャー、マイナーのフラグ、メジャーなら明るい、マイナーなら暗い曲として認定、各スケールに使用される特徴があるか調べてみる。
+	
+	//小笠原さんのFFTから頂いた物
+	int num; // データの要素数
+	double [] data; // 元データ
+	double [] real; // 実数部
+	double [] imaginary; // 虚数部
+	//小笠原さんのFFTから頂いたもの、終わり
+	
 	//ここまで赤木の追加分変数
 	
 	public WavePlayer(String uri) throws IOException{
@@ -304,6 +312,19 @@ public class WavePlayer{
 	
 	public void updateFFT()
 	{
+		//小笠原さんのサンプルより
+		for (int n = 0; n<num; n++) {
+			double ReF = 0.0, ImF = 0.0;
+			for (int k = 0; k <num; k++) {
+				ReF += waveform[k]*Math.cos(2*Math.PI*k*n/(num + 1));
+				ImF += -waveform[k]*Math.sin(2*Math.PI*k*n/(num + 1));
+			}
+			real[n] = ReF;
+			imaginary[n] = ImF;
+ 		}
+		
+		
+		
 	}
 	
 	//追加分、ここで終了
