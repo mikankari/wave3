@@ -72,6 +72,7 @@ public class WaveView extends View{
 		WavePlayer player = ((WaveActivity)getContext()).player;
 		drawArray(canvas, "waveform", player.getWaveform(), 1, (int)(getHeight() * 0.25));
 		drawParam(canvas, "%", (int)(player.getDecodePercentage() * 100), (int)(getHeight() * 0.50));
+		drawParam(canvas, "tempo", player.getBPM(), (int)(getHeight() * 0.75));
 		paint.setColor(Color.BLACK);
 		canvas.drawLine(0, (int)(getHeight() * 0.50), (int)(player.getDecodePercentage() * getWidth()), (int)(getHeight() * 0.50), paint);
     

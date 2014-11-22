@@ -19,10 +19,8 @@ public class WavePlayer{
 	private MediaExtractor extractor;
 	private MediaFormat format;
 	private MediaCodec codec;
-	private Thread inputbuffer_thread;
-	private Thread outputbuffer_thread;
-	private boolean inputbuffer_isloop;
-	private boolean outputbuffer_isloop;
+	private Thread buffer_thread;
+	private boolean buffer_isloop;
 	private byte[] waveform;
 	private byte[] waveform1000ms;
 	private int waveform1000ms_index;
@@ -47,23 +45,25 @@ public class WavePlayer{
 		String mimetype = format.getString(MediaFormat.KEY_MIME);
 
 		codec = MediaCodec.createDecoderByType(mimetype);
-		Log.d("", "ok");
 		codec.configure(format, null, null, 0);
 		codec.start();
 		
 		final ByteBuffer[] inputbuffer = codec.getInputBuffers();
 		final ByteBuffer[] outputbuffer = codec.getOutputBuffers();
 				
-		inputbuffer_thread = new Thread(new Runnable() {
+		buffer_thread = new Thread(new Runnable() {
 			
 			@Override
 			public void run() {
 				// TODO 自動生成されたメソッド・スタブ
 				
 				boolean isEOS = false;
-//				ByteBuffer[] inputbuffer = codec.getInputBuffers();
-				
-				while(inputbuffer_isloop){
+				MediaCodec.BufferInfo bufferinfo = new MediaCodec.BufferInfo();
+				AudioTrack track = null;
+				byte[] chunk = null;
+				boolean isplayed = false;
+
+				while(buffer_isloop){
 					int inputbuffer_index = codec.dequeueInputBuffer(1);
 					if(inputbuffer_index >= 0){
 						ByteBuffer buffer = inputbuffer[inputbuffer_index];
@@ -94,23 +94,7 @@ public class WavePlayer{
 							Log.e("", e.toString() + " in inputbuffer");
 						}
 					}
-				}
-			}
-			
-		});
-		
-		outputbuffer_thread = new Thread(new Runnable() {
-			
-			@Override
-			public void run() {
-				// TODO 自動生成されたメソッド・スタブ
-//				ByteBuffer[] outputbuffer = null;
-				MediaCodec.BufferInfo bufferinfo = new MediaCodec.BufferInfo();
-				AudioTrack track = null;
-				byte[] chunk = null;
-				boolean isplayed = false;
 				
-				while(outputbuffer_isloop){
 					int response = codec.dequeueOutputBuffer(bufferinfo, 1);
 					if(response >= 0){
 						int outputbuffer_index = response;
@@ -184,7 +168,9 @@ public class WavePlayer{
 	
 	private void updateWaveform(byte[] waveform_sample){
 		waveform = waveform_sample;
-		updateFFT();
+		if(waveform != null){
+			updateFFT();			
+		}
     	if(waveform1000ms_index >= 0 && waveform1000ms_index < waveform1000ms.length){ 
     		for (int i = 0; i < waveform_sample.length && waveform1000ms_index + i < waveform1000ms.length; i++) { 
     			waveform1000ms[waveform1000ms_index + i] = waveform_sample[i]; 
@@ -276,7 +262,7 @@ public class WavePlayer{
 		int[] bpmmin = new int[beatmin_indexes.size() - 1];
 		int[] bpmmax = new int[beatmax_indexes.size() - 1];
 		int maximum_bpm = 185;
-		double msper1sample = 1000 / (format.getInteger(format.KEY_SAMPLE_RATE) / 2);	// 1085.9 は環境依存要素かもしれない。1000msを表している
+		double msper1sample = 1000.0 / (format.getInteger(format.KEY_SAMPLE_RATE) / 2);	// 1085.9 は環境依存要素かもしれない。1000msを表している
 		for (int i = 0; i < beatmin_indexes.size() - 1; i++) {
 			int duration_sample = beatmin_indexes.get(i + 1) - beatmin_indexes.get(i);
 			bpmmin[i] = (int)(60000 / (duration_sample * msper1sample));
@@ -301,12 +287,25 @@ public class WavePlayer{
 				bpms.put(key, 0);
 			}
 		}
+		for (int i = 0; i < bpmmax.length; i++) {
+			int key = bpmmax[i];
+			if(bpms.containsKey(key)){
+				int value = bpms.get(key);
+				bpms.put(key, value + 1);				
+			}else{
+				bpms.put(key, 0);
+			}
+		}
 	}
 	
 	//赤木追加分,ｆｆｔの処理をここにガリガリと書いていきます
 	
 	public void updateFFT()
 	{
+		if(waveform.length < 254){
+			return;
+		}
+		
 		// 1秒ごとの波形の最初の254サンプルだけを見る、とりあえず
 		byte[] data = new byte[254];
 		for (int i = 0; i < data.length; i++) {
@@ -546,18 +545,14 @@ public class WavePlayer{
 	}
 	
 	public void start(){
-		inputbuffer_isloop = true;
-		outputbuffer_isloop = true;
-		inputbuffer_thread.start();
-		outputbuffer_thread.start();		
+		buffer_isloop = true;
+		buffer_thread.start();
 	}
 	
 	public void stop(){
-		inputbuffer_isloop = false;
-		outputbuffer_isloop = false;
+		buffer_isloop = false;
 		try {
-			inputbuffer_thread.join();
-			outputbuffer_thread.join();
+			buffer_thread.join();
 		} catch (Exception e) {
 			// TODO: handle exception
 			Log.e("", e.toString() + " in stop");

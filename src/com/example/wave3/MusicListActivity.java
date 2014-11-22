@@ -35,10 +35,12 @@ public class MusicListActivity extends Activity {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 				// TODO 自動生成されたメソッド・スタブ
-				Data item = (Data)parent.getItemAtPosition(position);
-				Intent intent = new Intent(MusicListActivity.this, WaveActivity.class);   
-				intent.putExtra("uri", item.data);   
-				startActivity(intent);
+				if(!isAnalysing()){
+					Data item = (Data)parent.getItemAtPosition(position);
+					Intent intent = new Intent(MusicListActivity.this, WaveActivity.class);   
+					intent.putExtra("uri", item.data);   
+					startActivity(intent);					
+				}
 			}
 		});
 		
@@ -71,7 +73,7 @@ public class MusicListActivity extends Activity {
 					try {
 						WavePlayer player = new WavePlayer(item.data);
 						player.start();
-						while(player.getDecodePercentage() != 1){
+						while(player.getDecodePercentage() != 1 && analysing_isloop){
 							item.info = Math.round(player.getDecodePercentage() * 100) + "% 解析中...";
 							handler.post(new Runnable() {
 								@Override
@@ -90,6 +92,7 @@ public class MusicListActivity extends Activity {
 								((ArrayAdapter)listview1.getAdapter()).notifyDataSetChanged();									
 							}
 						});
+						player.stop();
 					} catch (Exception e) {
 						// TODO 自動生成された catch ブロック
 						Log.e("", e.toString() + " on analysing: " + i);
@@ -112,6 +115,10 @@ public class MusicListActivity extends Activity {
 	
 	protected void onDestroy(){
 		super.onDestroy();
+	}
+	
+	public boolean isAnalysing(){
+		return analysing_isloop;
 	}
 	
 	public void startAnalysing(){
