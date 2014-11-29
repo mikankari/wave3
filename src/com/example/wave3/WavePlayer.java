@@ -167,7 +167,7 @@ public class WavePlayer{
 	private void updateWaveform(byte[] waveform_sample){
 		waveform = waveform_sample;
 		if(waveform != null){
-//			updateFFT();			
+			updateFFT();			
 		}
     	if(waveform1000ms_index >= 0 && waveform1000ms_index < waveform1000ms.length){ 
     		for (int i = 0; i < waveform_sample.length && waveform1000ms_index + i < waveform1000ms.length; i++) { 
@@ -300,17 +300,18 @@ public class WavePlayer{
 	
 	public void updateFFT()
 	{
-		if(waveform.length < 254){
+		if(waveform.length < 256){
 			return;
 		}
 		
-		// 1秒ごとの波形の最初の254サンプルだけを見る、とりあえず
-		byte[] data = new byte[254];
+		// 1秒ごとの波形の最初の256サンプルだけを見る、とりあえず
+		byte[] data = new byte[256];
 		for (int i = 0; i < data.length; i++) {
 			data[i] = waveform[i];
 		}
 		
 		//小笠原さんのサンプルより
+long time_b = System.currentTimeMillis();
 		double [] real = new double[data.length]; // 実数部
 		double [] imaginary = new double[data.length]; // 虚数部
 		
@@ -323,6 +324,9 @@ public class WavePlayer{
 			real[n] = ReF;	// 実数部
 			imaginary[n] = ImF;	// 虚数部
  		}
+long time_a = System.currentTimeMillis();
+Log.d("", (time_a - time_b) + "ms");
+// double で 64516 回 → 27ms ぐらい
 		
 		// Android仕様に合わせる
 		fft = new byte[real.length * 2 + 2];	// 512
@@ -517,6 +521,10 @@ public class WavePlayer{
 	public byte[] getWaveform(){
 		byte[] waveform_sample = waveform;
 		return waveform_sample;
+	}
+	
+	public byte[] getFFT(){
+		return fft;
 	}
 	
 	public int getBPM(){
