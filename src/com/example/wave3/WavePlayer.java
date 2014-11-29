@@ -25,6 +25,7 @@ public class WavePlayer{
 	private byte[] waveform1000ms;
 	private int waveform1000ms_index;
 	private HashMap<Integer, Integer> bpms;
+	private boolean buffer_isplay = false;
 
 	//ここから赤木の追加分変数
 	byte[] fft; //fftデータ格納用バイト型変数
@@ -64,7 +65,7 @@ public class WavePlayer{
 				boolean isplayed = false;
 
 				while(buffer_isloop){
-					int inputbuffer_index = codec.dequeueInputBuffer(1);
+					int inputbuffer_index = codec.dequeueInputBuffer(1000000);
 					if(inputbuffer_index >= 0){
 						ByteBuffer buffer = inputbuffer[inputbuffer_index];
 						int bufferSize = extractor.readSampleData(buffer, 0);
@@ -87,15 +88,15 @@ public class WavePlayer{
 						}
 					}else{
 //						Log.d("", "fail to get inputbuffer");
-//						try {
-//							Thread.sleep(1);
-//						} catch (Exception e) {
-//							// TODO: handle exception
-//							Log.e("", e.toString() + " in buffer");
-//						}
+						try {
+							Thread.sleep(16);
+						} catch (Exception e) {
+							// TODO: handle exception
+							Log.e("", e.toString() + " in buffer");
+						}
 					}
 				
-					int response = codec.dequeueOutputBuffer(bufferinfo, 0);
+					int response = codec.dequeueOutputBuffer(bufferinfo, 1000);
 					if(response >= 0){
 						int outputbuffer_index = response;
 						ByteBuffer buffer = outputbuffer[outputbuffer_index];
@@ -104,29 +105,29 @@ public class WavePlayer{
 						}
 						buffer.position(bufferinfo.offset);
 						buffer.get(chunk, 0, chunk.length);
-//						if(bufferinfo.size > 0){
-//							int remaining = chunk.length;
-//							int written = 0;
-//							int written_once;
-//							while(true){
-//								written_once = track.write(chunk, written, remaining);
-//								written += written_once;
-//								remaining -= written_once;
-//								if(!isplayed && (remaining == 0 || written_once == 0)){
-//									isplayed = true;
-//									track.play();
-//								}
-//								if(remaining == 0){
-//									break;
-//								}
-//								try {
-//									Thread.sleep(16);
-//								} catch (Exception e) {
-//									// TODO: handle exception
-//									Log.e("", e.toString() + " in outputbuffer");
-//								}
-//							}
-//						}
+						if(buffer_isplay && bufferinfo.size > 0){
+							int remaining = chunk.length;
+							int written = 0;
+							int written_once;
+							while(true){
+								written_once = track.write(chunk, written, remaining);
+								written += written_once;
+								remaining -= written_once;
+								if(!isplayed && (remaining == 0 || written_once == 0)){
+									isplayed = true;
+									track.play();
+								}
+								if(remaining == 0){
+									break;
+								}
+								try {
+									Thread.sleep(16);
+								} catch (Exception e) {
+									// TODO: handle exception
+									Log.e("", e.toString() + " in outputbuffer");
+								}
+							}
+						}
 						updateWaveform(chunk);
 						codec.releaseOutputBuffer(outputbuffer_index, false);
 						if((bufferinfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0){
@@ -304,29 +305,35 @@ public class WavePlayer{
 			return;
 		}
 		
-		// 1秒ごとの波形の最初の256サンプルだけを見る、とりあえず
-		byte[] data = new byte[256];
+		// 1秒ごとの波形の最初の255サンプルだけを見る、とりあえず
+		byte[] data = new byte[255];
 		for (int i = 0; i < data.length; i++) {
 			data[i] = waveform[i];
 		}
 		
 		//小笠原さんのサンプルより
 long time_b = System.currentTimeMillis();
-		double [] real = new double[data.length]; // 実数部
-		double [] imaginary = new double[data.length]; // 虚数部
+//		double [] real = new double[data.length]; // 実数部
+//		double [] imaginary = new double[data.length]; // 虚数部
+byte[] real = new byte[data.length];
+byte[] imaginary = new byte[data.length];
 		
 		for (int n = 0; n < data.length; n++) {
-			double ReF = 0.0, ImF = 0.0;
+//			double ReF = 0.0, ImF = 0.0;
+int ReF = 0, ImF = 0;
 			for (int k = 0; k < data.length; k++) {
 				ReF += data[k]*Math.cos(2*Math.PI*k*n/(data.length + 1));
 				ImF += -data[k]*Math.sin(2*Math.PI*k*n/(data.length + 1));
 			}
-			real[n] = ReF;	// 実数部
-			imaginary[n] = ImF;	// 虚数部
+ReF /= data.length;
+ImF /= data.length;
+			real[n] = (byte)ReF;	// 実数部
+			imaginary[n] = (byte)ImF;	// 虚数部
  		}
 long time_a = System.currentTimeMillis();
 Log.d("", (time_a - time_b) + "ms");
 // double で 64516 回 → 27ms ぐらい
+// byte + int で 65025回 → 26ms ぐらい
 		
 		// Android仕様に合わせる
 		fft = new byte[real.length * 2 + 2];	// 512
@@ -334,6 +341,7 @@ Log.d("", (time_a - time_b) + "ms");
 		fft[1] = 0;
 		for (int i = 1; i < fft.length / 2; i++) {	// i = 1 to 256 
 			double amplitude = Math.sqrt(Math.pow(real[i - 1], 2) + Math.pow(imaginary[i - 1], 2));
+//amplitude /= 100; 
 			if(amplitude > Byte.MAX_VALUE){
 				amplitude = Byte.MAX_VALUE;
 			}
