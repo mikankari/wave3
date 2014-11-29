@@ -4,9 +4,8 @@
     <string name="app_name">wave3</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
-    <string name="title_activity_music_list">wave2</string>
-    <string name="prev">←</string>
-    <string name="play">＞</string>
-    <string name="next">→</string>
+    <string name="title_activity_music_list">wave3</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
     
 </resources>
