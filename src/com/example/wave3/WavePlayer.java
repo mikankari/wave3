@@ -344,24 +344,21 @@ public class WavePlayer{
 			for(int loop=2;loop<51;loop+=2)
 			{
 				
-					if(tmp<fft[loop] /*&& (_clonefft[loop2]!=0 && _clonefft[loop2-2]!=0)*/)
+					if(tmp<fft[loop])
 					{
-						/*byte tmp = _clonefft[loop2];
-						_clonefft[loop2]=_clonefft[loop2-2];
-						_clonefft[loop2-2]=tmp;*/
 						tmp = fft[loop];
 						max=loop;
 						max_value = tmp;
 					}
-				//}
 			}
-			/*ミの判定、ミの周波数はこの番号に格納されているはず。*/
-			/*maxが14「ミ」かつ「ミ」が127の強さを持っていた場合、また前後の周波数成分が50以下の場合、「ミ」と判断する*/
+			
 			while(max > 23){	// 倍音補正かけてみたり（雑 追記(赤木):三倍音などにも対応できるようにしてみました
 				max = max / (max/23+1) ;
 			}
 			// 書き込みテストです、テスト
 							// fft[max] > max_value * 0.5 で最大値50%みたいにしてみたり
+			
+			//恐らくここの無駄に多いif文が重くなっている原因ではないかと推測,簡易にできないか検討中
 			
 			if(max==12 && ((double)fft[max-2]/(double)fft[max])<0.5 && ((double)fft[max+2]/(double)fft[max])<=0.3 && ((double)fft[max+4]/(double)fft[max])<0.2 && cs==false)//ド#の検出
 			{
