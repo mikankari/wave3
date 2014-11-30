@@ -312,15 +312,14 @@ public class WavePlayer{
 		}
 		
 		//小笠原さんのサンプルより
-long time_b = System.currentTimeMillis();
-//		double [] real = new double[data.length]; // 実数部
-//		double [] imaginary = new double[data.length]; // 虚数部
-byte[] real = new byte[data.length];
-byte[] imaginary = new byte[data.length];
+long time_b;
+long time_a;
+time_b = System.currentTimeMillis();
+		byte [] real = new byte[data.length]; // 実数部
+		byte [] imaginary = new byte[data.length]; // 虚数部
 		
 		for (int n = 0; n < data.length; n++) {
-//			double ReF = 0.0, ImF = 0.0;
-int ReF = 0, ImF = 0;
+			double ReF = 0.0, ImF = 0.0;
 			for (int k = 0; k < data.length; k++) {
 				ReF += data[k]*Math.cos(2*Math.PI*k*n/(data.length + 1));
 				ImF += -data[k]*Math.sin(2*Math.PI*k*n/(data.length + 1));
@@ -330,12 +329,14 @@ ImF /= data.length;
 			real[n] = (byte)ReF;	// 実数部
 			imaginary[n] = (byte)ImF;	// 虚数部
  		}
-long time_a = System.currentTimeMillis();
-Log.d("", (time_a - time_b) + "ms");
+time_a = System.currentTimeMillis();
+Log.d("実行時間", (time_a - time_b) + " ms in フーリエさん");
 // double で 64516 回 → 27ms ぐらい
 // byte + int で 65025回 → 26ms ぐらい
-		
+// 4分46秒 の曲を 5分16秒 で解析
+
 		// Android仕様に合わせる
+time_b = System.currentTimeMillis();
 		fft = new byte[real.length * 2 + 2];	// 512
 		fft[0] = 0;
 		fft[1] = 0;
@@ -348,7 +349,10 @@ Log.d("", (time_a - time_b) + "ms");
 			fft[i * 2] = (byte)amplitude;
 			fft[i * 2 + 1] = (byte)amplitude;
 		}
+time_a = System.currentTimeMillis();
+Log.d("実行時間", (time_a - time_b) + " ms in Android仕様に合わせる");
 		
+time_b = System.currentTimeMillis();
 		//最大値検出処理
 		if(Scale==false){
 			byte max_value;
@@ -517,6 +521,8 @@ Log.d("", (time_a - time_b) + "ms");
 				}
 			}
 		}
+time_a = System.currentTimeMillis();
+Log.d("実行時間", (time_a - time_b) + " ms in スケール解析");
 	}
 	
 	//追加分、ここで終了
